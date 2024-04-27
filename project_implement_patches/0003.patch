@@ -1,0 +1,96 @@
+From 89aa0676d9e565e706e36485f10c588403ab0f69 Mon Sep 17 00:00:00 2001
+From: bl <latinovic@github.com>
+Date: Sat, 29 Apr 2023 12:45:01 +0200
+Subject: [PATCH 5/6] Distance calculation implemented
+
+---
+ main.c | 44 ++++++++++++++++++++++++++++++--------------
+ 1 file changed, 30 insertions(+), 14 deletions(-)
+
+diff --git a/main.c b/main.c
+index ebe787f..b9666c5 100644
+--- a/main.c
++++ b/main.c
+@@ -73,10 +73,8 @@
+ 
+ //Human readable format
+ #define HUMAN
+-
+ //****************************MY_CODE************************************
+ //************************************************************************
+-// TODO: add a method for calculating the distnace
+ #include <math.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+@@ -90,8 +88,9 @@
+ #define MEDIAN_ARRAY_INDEX 9
+ #define MEDIAN_ARRAY_FIRST_VAL 3
+ #define PATH_LOSS 2.0 // path loss exponent
+-#define REFERENCE_POWER_LEVEL 59
+-#define DEFAULT_VALUE 0
++#define STATIC_ANCHOR 59
++#define DEFAULT_VALUE 0 // nevermind
++
+ uint16_t my_arr[MAX_NODES][MAX_VALS] = {{DEFAULT_VALUE}}; 
+ 
+ int compare(const void *a, const void *b) {
+@@ -107,18 +106,18 @@ uint16_t find_median(uint16_t arr[], int n) {
+     }
+ }
+ 
+-uint16_t calculate_distance(uint16_t rssi, uint16_t lqi, uint16_t ref_power_level) {
++uint16_t calculate_distance(uint16_t rssi, uint16_t lqi, uint16_t ref_power_level, uint16_t node) {
+     double rssi_d = - (double)rssi;
+ 
+     double lqi_d = (double)lqi;
+-    double ref_power_level_d = - (double)ref_power_level;
++    double ref_power_level_d = -(double)ref_power_level;
+ 
+     double distance = pow(10.0, (ref_power_level_d - rssi_d) / (10.0 * PATH_LOSS));
+-    //printf(" distance %f", rssi_d, "\n");
+-    // double weighted_distance = distance * (1.0 - lqi_d / 255.0);
+-
+-    // uint16_t result = (uint16_t)round(weighted_distance);
++    printf("calculated distance in double %f",distance);
++    printf(" node addr %u\n",  node);
+     uint16_t result = (uint16_t) distance;
++
++    // printf("result = %u\n",result);
+     return result;
+ }
+ 
+@@ -131,10 +130,27 @@ void insert_number(uint16_t arr[][MAX_VALS], int row, uint16_t number, uint16_t
+     uint16_t values[6] = {arr[row][3], arr[row][4], arr[row][5], arr[row][6], arr[row][7], arr[row][8]};
+     arr[row][RSSI_INDEX] = find_median(values, 6);
+ 
+-	double rssi_d = - (double)(arr[row][RSSI_INDEX]);
+-	//printf("%u\n",arr[row][RSSI_INDEX]);
+-	printf(" %f", rssi_d);
+-    arr[row][DISTANCE_INDEX] = calculate_distance(arr[row][RSSI_INDEX], lqi, REFERENCE_POWER_LEVEL);
++
++    int coordinator_index = -1; 
++    for (int i = 0; i < MAX_NODES; i++) {
++        if (arr[i][0] == 999) { // we look for coordinator to use as an anchor point
++            coordinator_index = i;
++            break;
++        }
++    }
++    uint16_t coordinator_rssi = arr[coordinator_index][RSSI_INDEX];
++    
++    uint16_t refernce_rssi = 0;
++
++    if ((coordinator_rssi != 0) && (arr[row][0] != 999)){  // if we have no rssi for coordinator yet - we will use static value as the reference_rssi instead
++                                                         // at the same time we want coordinator to always use static rssi
++        refernce_rssi = coordinator_rssi;
++    } else {
++        refernce_rssi = STATIC_ANCHOR;
++    }
++
++	// printf("used rssi %u\n",refernce_rssi);
++    arr[row][DISTANCE_INDEX] = calculate_distance(arr[row][RSSI_INDEX], lqi, refernce_rssi, arr[row][0]);
+ }
+ 
+ int add_node(uint16_t arr[][MAX_VALS], uint16_t addr){ // looks into table - if address exists, it returns index of address, if it does not exist - it creates and entry returns an index
+-- 
+2.34.1
+

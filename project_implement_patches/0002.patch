@@ -1,0 +1,49 @@
+From 86256ef0deee278ec285776ffbb4b5617011ffaa Mon Sep 17 00:00:00 2001
+From: bl <latinovic@github.com>
+Date: Fri, 28 Apr 2023 23:13:51 +0200
+Subject: [PATCH 3/6] little fix
+
+---
+ main.c | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/main.c b/main.c
+index 8322662..ebe787f 100644
+--- a/main.c
++++ b/main.c
+@@ -90,8 +90,8 @@
+ #define MEDIAN_ARRAY_INDEX 9
+ #define MEDIAN_ARRAY_FIRST_VAL 3
+ #define PATH_LOSS 2.0 // path loss exponent
+-#define REFERENCE_POWER_LEVEL -59
+-#define DEFAULT_VALUE 999
++#define REFERENCE_POWER_LEVEL 59
++#define DEFAULT_VALUE 0
+ uint16_t my_arr[MAX_NODES][MAX_VALS] = {{DEFAULT_VALUE}}; 
+ 
+ int compare(const void *a, const void *b) {
+@@ -111,7 +111,7 @@ uint16_t calculate_distance(uint16_t rssi, uint16_t lqi, uint16_t ref_power_leve
+     double rssi_d = - (double)rssi;
+ 
+     double lqi_d = (double)lqi;
+-    double ref_power_level_d = (double)ref_power_level;
++    double ref_power_level_d = - (double)ref_power_level;
+ 
+     double distance = pow(10.0, (ref_power_level_d - rssi_d) / (10.0 * PATH_LOSS));
+     //printf(" distance %f", rssi_d, "\n");
+@@ -670,7 +670,11 @@ static bool appRSSIInd(NWK_DataInd_t *ind)
+ //	printf("Short addr: 0x%X \n\r",addr);
+ 	//printf("LQI: %d \n\r", lqi);
+ 	//printf("RSSI: %d \n\r", rssi_new);
+-	
++
++	if (addr == 0){
++        addr = 999; // we will use this a special address for cooridnator in our table
++    }
++ 
+ 	int curr_addr = add_node(my_arr, addr); // create address entry in the table or select existing
+ 	insert_number(my_arr, curr_addr, rssi_new, lqi);
+ 	print_row(my_arr, curr_addr);
+-- 
+2.34.1
+

@@ -1,0 +1,136 @@
+From 6677500124485ecc7e47e271da2396cf5c322bcd Mon Sep 17 00:00:00 2001
+From: latinovicb <latinovic@github.com>
+Date: Fri, 28 Apr 2023 22:25:53 +0200
+Subject: [PATCH 2/6] table works
+
+---
+ main.c | 47 ++++++++++++++++++++++++++++-------------------
+ 1 file changed, 28 insertions(+), 19 deletions(-)
+
+diff --git a/main.c b/main.c
+index 79092a0..8322662 100644
+--- a/main.c
++++ b/main.c
+@@ -91,8 +91,8 @@
+ #define MEDIAN_ARRAY_FIRST_VAL 3
+ #define PATH_LOSS 2.0 // path loss exponent
+ #define REFERENCE_POWER_LEVEL -59
+-
+-uint16_t arr[MAX_NODES][MAX_VALS] = {{0}}; 
++#define DEFAULT_VALUE 999
++uint16_t my_arr[MAX_NODES][MAX_VALS] = {{DEFAULT_VALUE}}; 
+ 
+ int compare(const void *a, const void *b) {
+     return (*(uint16_t *)a - *(uint16_t *)b);
+@@ -109,12 +109,12 @@ uint16_t find_median(uint16_t arr[], int n) {
+ 
+ uint16_t calculate_distance(uint16_t rssi, uint16_t lqi, uint16_t ref_power_level) {
+     double rssi_d = - (double)rssi;
+-    printf("%f", rssi_d);
++
+     double lqi_d = (double)lqi;
+     double ref_power_level_d = (double)ref_power_level;
+ 
+     double distance = pow(10.0, (ref_power_level_d - rssi_d) / (10.0 * PATH_LOSS));
+-
++    //printf(" distance %f", rssi_d, "\n");
+     // double weighted_distance = distance * (1.0 - lqi_d / 255.0);
+ 
+     // uint16_t result = (uint16_t)round(weighted_distance);
+@@ -131,11 +131,14 @@ void insert_number(uint16_t arr[][MAX_VALS], int row, uint16_t number, uint16_t
+     uint16_t values[6] = {arr[row][3], arr[row][4], arr[row][5], arr[row][6], arr[row][7], arr[row][8]};
+     arr[row][RSSI_INDEX] = find_median(values, 6);
+ 
++	double rssi_d = - (double)(arr[row][RSSI_INDEX]);
++	//printf("%u\n",arr[row][RSSI_INDEX]);
++	printf(" %f", rssi_d);
+     arr[row][DISTANCE_INDEX] = calculate_distance(arr[row][RSSI_INDEX], lqi, REFERENCE_POWER_LEVEL);
+ }
+ 
+ int add_node(uint16_t arr[][MAX_VALS], uint16_t addr){ // looks into table - if address exists, it returns index of address, if it does not exist - it creates and entry returns an index
+-    int row_index = 0;
++    int row_index = DEFAULT_VALUE;
+     for (int row = 0; row < MAX_NODES; row++) { // check whole table
+         for (int col = 0; col < MAX_VALS; col++) {
+             if(arr[row][0] == addr){
+@@ -144,10 +147,10 @@ int add_node(uint16_t arr[][MAX_VALS], uint16_t addr){ // looks into table - if
+             }
+         }
+     }
+-    if (row_index == 0){  // iterate through table again and assign value to first zero entry
++    if (row_index == DEFAULT_VALUE){  // iterate through table again and assign value to first zero entry
+         for (int row = 0; row < MAX_NODES; row++) {
+             for (int col = 0; col < MAX_VALS; col++) {
+-                if(arr[row][0] == 0){
++                if(arr[row][0] == DEFAULT_VALUE){
+                     arr[row][0] = addr;
+                     row_index = row;
+                     return row_index;
+@@ -550,6 +553,7 @@ static void appUartSendMessageHR(uint8_t *data, uint8_t size)
+ 	//printf("Caption Type: %d \n\r", BufferHR->caption.type);
+ 	//printf("Caption Size: %d \n\r", BufferHR->caption.size);
+ 	printf("Caption Text:");
++	
+ 	int i;
+ 	for (i=0;i<BufferHR->caption.size;i++)
+ 	{
+@@ -562,15 +566,6 @@ static void appUartSendMessageHR(uint8_t *data, uint8_t size)
+ 	else{
+ 		
+ 	}
+-// *******************************MY_CODE**********************************
+-uint16_t addr = (BufferHR->shortAddr);
+-uint16_t rssi_new = - (uint16_t) (BufferHR->rssi);
+-uint16_t lqi = (uint16_t) (BufferHR->lqi)
+-
+-int curr_addr = add_node(my_arr, addr); // create address entry in the table or select existing
+-insert_number(my_arr, curr_addr, rssi_new, lqi);
+-print_row(curr_addr);
+-// ************************************************************************
+ }
+ 
+ /*************************************************************************//**
+@@ -666,7 +661,21 @@ static bool appAddrInd(NWK_DataInd_t *ind)
+ static bool appRSSIInd(NWK_DataInd_t *ind)
+ {
+ 	uint8_t id = ind->data[0];
+-	printf("RSSI message from %X, id %d, RSSI: %d \n\r",ind->srcAddr,id, ind->rssi);
++	//printf("RSSI message from %X, id %d, RSSI: %d \n\r",ind->srcAddr,id, ind->rssi);
++	// *******************************MY_CODE**********************************
++	uint16_t addr = (ind->srcAddr);
++	uint16_t rssi_new = - (uint16_t) (ind->rssi);
++	uint16_t lqi = 0;
++
++//	printf("Short addr: 0x%X \n\r",addr);
++	//printf("LQI: %d \n\r", lqi);
++	//printf("RSSI: %d \n\r", rssi_new);
++	
++	int curr_addr = add_node(my_arr, addr); // create address entry in the table or select existing
++	insert_number(my_arr, curr_addr, rssi_new, lqi);
++	print_row(my_arr, curr_addr);
++	//printTable(my_arr);
++	// ************************************************************************
+ 
+ 	return true;
+ }
+@@ -952,7 +961,7 @@ static void appRSSI_msg(){
+ 	appNwkRSSIReq.dstAddr = 0xFFFF;
+ 	appNwkRSSIReq.dstEndpoint = RSSI_ENDPOINT;
+ 	appNwkRSSIReq.srcEndpoint = RSSI_ENDPOINT;
+-	appNwkRSSIReq.options = NWK_OPT_ACK_REQUEST | NWK_OPT_ENABLE_SECURITY;
++	appNwkRSSIReq.options = NWK_OPT_ENABLE_SECURITY;
+ 	appNwkRSSIReq.data = &rssi_counter;
+ 	appNwkRSSIReq.size = sizeof(rssi_counter);
+ 	appNwkRSSIReq.confirm = appRSSIConf;
+@@ -1023,7 +1032,7 @@ static void appInit(void)
+ 
+   NWK_OpenEndpoint(APP_ENDPOINT, appDataInd);
+   NWK_OpenEndpoint(ADDR_ENDPOINT, appAddrInd);
+-  NWK_OpenEndpoint(RSSI_ENDPOINT, appAddrInd);
++  NWK_OpenEndpoint(RSSI_ENDPOINT, appRSSIInd);
+ 
+   appDataSendingTimer.interval = APP_SENDING_INTERVAL;
+   appDataSendingTimer.mode = SYS_TIMER_INTERVAL_MODE;
+-- 
+2.34.1
+
